@@ -1,0 +1,10 @@
+streamlit
+pandas
+numpy
+prophet==1.1
+plotly
+requests
+setuptools>=42
+wheel
+cmdstanpy==1.0.4
+pystan==2.19.1.1
