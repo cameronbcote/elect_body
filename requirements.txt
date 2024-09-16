@@ -1,8 +1,7 @@
 streamlit
 pandas
 numpy
-neuralprophet==0.9.0
-torch>=1.13.1
+prophet
 plotly
 requests
 
