@@ -113,18 +113,24 @@ def perform_forecasting(energy_prices, bodycote_data):
     # Prepare Bodycote data for NeuralProphet
     bodycote_prophet_data = bodycote_data.rename(columns={'Year': 'ds', 'Revenue': 'y'})
     bodycote_prophet_data['ds'] = pd.to_datetime(bodycote_prophet_data['ds'].astype(str) + '-12-31')
-
+    
+    # Select only 'ds' and 'y' columns
+    bodycote_prophet_data = bodycote_prophet_data[['ds', 'y']]
+    
     # Initialize NeuralProphet model
     revenue_model = NeuralProphet(yearly_seasonality=True)
-
+    
     # Fit the model
     revenue_model.fit(bodycote_prophet_data, freq='Y')
-
+    
     # Create future dataframe
     future_revenue = revenue_model.make_future_dataframe(bodycote_prophet_data, periods=forecast_period)
-
+    
     # Predict
     revenue_forecast = revenue_model.predict(future_revenue)
+
+    # ... rest of your code ...
+
 
     # Forecast energy prices
     # For electricity price
