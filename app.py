@@ -3,7 +3,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from prophet import Prophet
+from neuralprophet import NeuralProphet
 import plotly.express as px
 import plotly.graph_objects as go
 import requests
@@ -47,7 +47,7 @@ def fetch_ons_data(dataset_id, series_id):
         return None
 
 def generate_mock_energy_data(start_year=2010, end_year=2023):
-    years = pd.date_range(start=f'{start_year}-01-01', end=f'{end_year}-12-31', freq='YE')
+    years = pd.date_range(start=f'{start_year}-01-01', end=f'{end_year}-12-31', freq='Y')
     np.random.seed(42)
     electricity_prices = 100 + np.cumsum(np.random.normal(5, 2, len(years)))
     gas_prices = 80 + np.cumsum(np.random.normal(3, 1, len(years)))
@@ -61,7 +61,7 @@ def generate_mock_energy_data(start_year=2010, end_year=2023):
 st.set_page_config(page_title="Bodycote Forecast Dashboard", layout="wide")
 st.title("📈 Bodycote Forecast Dashboard")
 st.markdown("""
-This interactive dashboard provides forecasts of Bodycote's revenue and energy costs over the next few years using historical data and the Prophet forecasting model.
+This interactive dashboard provides forecasts of Bodycote's revenue and energy costs over the next few years using historical data and the NeuralProphet forecasting model.
 """)
 
 # Sidebar Inputs
@@ -110,39 +110,50 @@ energy_prices, bodycote_data = load_data()
 # Forecasting
 @st.cache_data
 def perform_forecasting(energy_prices, bodycote_data):
-    # Prepare Bodycote data for Prophet
+    # Prepare Bodycote data for NeuralProphet
     bodycote_prophet_data = bodycote_data.rename(columns={'Year': 'ds', 'Revenue': 'y'})
     bodycote_prophet_data['ds'] = pd.to_datetime(bodycote_prophet_data['ds'].astype(str) + '-12-31')
 
-    # Forecast Bodycote's revenue
-    revenue_model = Prophet(yearly_seasonality=True)
-    revenue_model.fit(bodycote_prophet_data)
-    future_revenue = revenue_model.make_future_dataframe(periods=forecast_period, freq='YE')
+    # Initialize NeuralProphet model
+    revenue_model = NeuralProphet(yearly_seasonality=True)
+
+    # Fit the model
+    revenue_model.fit(bodycote_prophet_data, freq='Y')
+
+    # Create future dataframe
+    future_revenue = revenue_model.make_future_dataframe(bodycote_prophet_data, periods=forecast_period)
+
+    # Predict
     revenue_forecast = revenue_model.predict(future_revenue)
 
     # Forecast energy prices
-    electricity_model = Prophet(yearly_seasonality=True)
-    electricity_model.fit(energy_prices[['ds', 'electricity_price']].rename(columns={'electricity_price': 'y'}))
-    gas_model = Prophet(yearly_seasonality=True)
-    gas_model.fit(energy_prices[['ds', 'gas_price']].rename(columns={'gas_price': 'y'}))
-
-    future_energy = electricity_model.make_future_dataframe(periods=forecast_period, freq='YE')
+    # For electricity price
+    electricity_data = energy_prices[['ds', 'electricity_price']].rename(columns={'electricity_price': 'y'})
+    electricity_model = NeuralProphet(yearly_seasonality=True)
+    electricity_model.fit(electricity_data, freq='Y')
+    future_energy = electricity_model.make_future_dataframe(electricity_data, periods=forecast_period)
     electricity_forecast = electricity_model.predict(future_energy)
-    gas_forecast = gas_model.predict(future_energy)
+
+    # For gas price
+    gas_data = energy_prices[['ds', 'gas_price']].rename(columns={'gas_price': 'y'})
+    gas_model = NeuralProphet(yearly_seasonality=True)
+    gas_model.fit(gas_data, freq='Y')
+    future_energy_gas = gas_model.make_future_dataframe(gas_data, periods=forecast_period)
+    gas_forecast = gas_model.predict(future_energy_gas)
 
     # Combine forecasts
-    combined_forecast = pd.merge(revenue_forecast[['ds', 'yhat']], 
-                                 electricity_forecast[['ds', 'yhat']], 
+    combined_forecast = pd.merge(revenue_forecast[['ds', 'yhat1']], 
+                                 electricity_forecast[['ds', 'yhat1']], 
                                  on='ds', suffixes=('_revenue', '_electricity'))
     combined_forecast = pd.merge(combined_forecast, 
-                                 gas_forecast[['ds', 'yhat']], 
+                                 gas_forecast[['ds', 'yhat1']], 
                                  on='ds', suffixes=('', '_gas'))
 
     # Rename columns to ensure consistent naming
     combined_forecast = combined_forecast.rename(columns={
-        'yhat_revenue': 'revenue_forecast',
-        'yhat_electricity': 'electricity_price_forecast',
-        'yhat': 'gas_price_forecast'
+        'yhat1_revenue': 'revenue_forecast',
+        'yhat1_electricity': 'electricity_price_forecast',
+        'yhat1': 'gas_price_forecast'
     })
 
     # Estimate energy costs (using user input percentage of revenue)
