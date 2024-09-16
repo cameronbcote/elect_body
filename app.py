@@ -4,7 +4,7 @@ import numpy as np
 # Restore deprecated aliases in NumPy
 np.bool = bool
 np.int = int
-np.float = float
+np.float64 = float
 np.complex = complex
 np.object = object
 np.long = int
