@@ -1,8 +1,17 @@
 # app.py
+import numpy as np
+
+# Restore deprecated aliases in NumPy
+np.bool = bool
+np.int = int
+np.float = float
+np.complex = complex
+np.object = object
+np.long = int
+np.str = str
 
 import streamlit as st
 import pandas as pd
-import numpy as np
 from prophet import Prophet
 import plotly.express as px
 import plotly.graph_objects as go
